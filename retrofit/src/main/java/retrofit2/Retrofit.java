@@ -65,16 +65,18 @@ public final class Retrofit {
   private final List<CallAdapter.Factory> adapterFactories;
   private final Executor callbackExecutor;
   private final boolean validateEagerly;
+  private final boolean hasRawResponseBody;
 
   Retrofit(okhttp3.Call.Factory callFactory, HttpUrl baseUrl,
       List<Converter.Factory> converterFactories, List<CallAdapter.Factory> adapterFactories,
-      Executor callbackExecutor, boolean validateEagerly) {
+      Executor callbackExecutor, boolean validateEagerly, boolean hasRawResponseBody) {
     this.callFactory = callFactory;
     this.baseUrl = baseUrl;
     this.converterFactories = unmodifiableList(converterFactories); // Defensive copy at call site.
     this.adapterFactories = unmodifiableList(adapterFactories); // Defensive copy at call site.
     this.callbackExecutor = callbackExecutor;
     this.validateEagerly = validateEagerly;
+    this.hasRawResponseBody = hasRawResponseBody;
   }
 
   /**
@@ -143,7 +145,7 @@ public final class Retrofit {
               return platform.invokeDefaultMethod(method, service, proxy, args);
             }
             ServiceMethod serviceMethod = loadServiceMethod(method);
-            OkHttpCall okHttpCall = new OkHttpCall<>(serviceMethod, args);
+            OkHttpCall okHttpCall = new OkHttpCall<>(serviceMethod, args, hasRawResponseBody);
             return serviceMethod.callAdapter.adapt(okHttpCall);
           }
         });
@@ -376,6 +378,10 @@ public final class Retrofit {
     return callbackExecutor;
   }
 
+  public boolean isHasRawResponseBody() {
+    return this.hasRawResponseBody;
+  }
+
   /**
    * Build a new {@link Retrofit}.
    * <p>
@@ -390,6 +396,7 @@ public final class Retrofit {
     private List<CallAdapter.Factory> adapterFactories = new ArrayList<>();
     private Executor callbackExecutor;
     private boolean validateEagerly;
+    private boolean hasRawResponseBody;
 
     Builder(Platform platform) {
       this.platform = platform;
@@ -535,6 +542,11 @@ public final class Retrofit {
       return this;
     }
 
+    public Builder hasRawResponseBody(boolean hasRawResponseBody) {
+      this.hasRawResponseBody = hasRawResponseBody;
+      return this;
+    }
+
     /**
      * Create the {@link Retrofit} instance using the configured values.
      * <p>
@@ -564,7 +576,7 @@ public final class Retrofit {
       List<Converter.Factory> converterFactories = new ArrayList<>(this.converterFactories);
 
       return new Retrofit(callFactory, baseUrl, converterFactories, adapterFactories,
-          callbackExecutor, validateEagerly);
+          callbackExecutor, validateEagerly, hasRawResponseBody);
     }
   }
 }

@@ -27,6 +27,7 @@ import okio.Okio;
 final class OkHttpCall<T> implements Call<T> {
   private final ServiceMethod<T> serviceMethod;
   private final Object[] args;
+  private final boolean hasRawResponseBody;
 
   private volatile boolean canceled;
 
@@ -35,14 +36,15 @@ final class OkHttpCall<T> implements Call<T> {
   private Throwable creationFailure; // Either a RuntimeException or IOException.
   private boolean executed;
 
-  OkHttpCall(ServiceMethod<T> serviceMethod, Object[] args) {
+  OkHttpCall(ServiceMethod<T> serviceMethod, Object[] args, boolean hasRawResponseBody) {
     this.serviceMethod = serviceMethod;
     this.args = args;
+    this.hasRawResponseBody = hasRawResponseBody;
   }
 
   @SuppressWarnings("CloneDoesntCallSuperClone") // We are a final type & this saves clearing state.
   @Override public OkHttpCall<T> clone() {
-    return new OkHttpCall<>(serviceMethod, args);
+    return new OkHttpCall<>(serviceMethod, args, hasRawResponseBody);
   }
 
   @Override public synchronized Request request() {
@@ -186,10 +188,14 @@ final class OkHttpCall<T> implements Call<T> {
   Response<T> parseResponse(okhttp3.Response rawResponse) throws IOException {
     ResponseBody rawBody = rawResponse.body();
 
-    // Remove the body's source (the only stateful object) so we can pass the response along.
-    rawResponse = rawResponse.newBuilder()
-        .body(new NoContentResponseBody(rawBody.contentType(), rawBody.contentLength()))
-        .build();
+    okhttp3.Response.Builder builder = rawResponse.newBuilder();
+    if(this.hasRawResponseBody) {
+      Buffer code = rawBody.source().buffer().clone();
+      builder.body(ResponseBody.create(rawBody.contentType(), code.size(), code));
+    } else {
+      builder.body(new NoContentResponseBody(rawBody.contentType(), rawBody.contentLength()));
+    }
+    rawResponse = builder.build();
 
     int code = rawResponse.code();
     if (code < 200 || code >= 300) {

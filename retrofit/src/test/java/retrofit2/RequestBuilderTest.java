@@ -2514,7 +2514,7 @@ public final class RequestBuilderTest {
 
     Method method = TestingUtils.onlyMethod(cls);
     ServiceMethod<?> serviceMethod = retrofit.loadServiceMethod(method);
-    OkHttpCall<?> okHttpCall = new OkHttpCall<>(serviceMethod, args);
+    OkHttpCall<?> okHttpCall = new OkHttpCall<>(serviceMethod, args, retrofit.isHasRawResponseBody());
     Call<?> call = (Call<?>) serviceMethod.callAdapter.adapt(okHttpCall);
     try {
       call.execute();
